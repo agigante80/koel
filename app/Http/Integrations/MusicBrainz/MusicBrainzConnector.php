@@ -32,15 +32,16 @@ class MusicBrainzConnector extends Connector
     }
 
     /**
-     * Only a transient failure counts as a failed request. MusicBrainz answers its rate limit
-     * with a 503 (and sometimes a 429); those bodies carry no data, and every encyclopedia
-     * pipe remembers "nothing found" for a week, so letting them through as an ordinary
-     * response cached a rate limit as a miss (or, where a pipe indexed into the body, threw a
-     * TypeError). Throwing instead keeps the miss uncached and the next run retries.
-     * A 404 for a specific identifier is a real miss and stays an ordinary response.
+     * Every encyclopedia pipe remembers "nothing found" for a week, so an error body that
+     * reaches a pipe as an ordinary response is cached as a miss: a 503 or 429 (the rate
+     * limit) for seven days, a 403 (a refused User-Agent) for every artist and album touched,
+     * silently, or, where a pipe indexed into the body, a TypeError. Any unsuccessful answer
+     * therefore throws, which TriesRemember rescues before its cache write, so the miss stays
+     * uncached and the next run retries. The one exception is a 404 for a specific
+     * identifier: that is a real miss and stays an ordinary response, remembered as one.
      */
     public function hasRequestFailed(Response $response): ?bool
     {
-        return $response->serverError() || $response->status() === 429;
+        return !$response->successful() && $response->status() !== 404;
     }
 }
