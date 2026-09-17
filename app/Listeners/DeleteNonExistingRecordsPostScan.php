@@ -123,14 +123,14 @@ readonly class DeleteNonExistingRecordsPostScan implements ShouldQueue
         }
 
         // Count the way deleteWhereValueNotIn() deletes, in both of its regimes, so the guard
-        // measures exactly what the delete would do: under the parameter limit, a SQL
-        // whereNotIn, which compares under the connection's collation (case- and
-        // accent-insensitive on MySQL's default); above it, the byte-exact array_diff the
-        // trait itself falls back to. A count taken any other way can disagree with the delete
-        // it is bounding, in either direction.
+        // measures what the delete would do: under the parameter limit, a SQL whereNotIn,
+        // which compares under the connection's collation (case- and accent-insensitive on
+        // MySQL's default); above it, the byte-exact array_diff the trait itself falls back
+        // to. Strictly below the limit, because storedLocally() binds one parameter of its
+        // own. A count taken any other way can disagree with the delete it is bounding.
         $maxChunkSize = DB::getDriverName() === 'sqlite' ? 999 : 65_535;
 
-        $doomed = count($paths) <= $maxChunkSize
+        $doomed = count($paths) < $maxChunkSize
             ? Song::query()->storedLocally()->whereNotIn('path', $paths)->count()
             : count(array_diff(Song::query()->storedLocally()->pluck('path')->all(), $paths));
 
