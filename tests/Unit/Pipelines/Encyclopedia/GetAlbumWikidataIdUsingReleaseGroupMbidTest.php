@@ -56,6 +56,39 @@ class GetAlbumWikidataIdUsingReleaseGroupMbidTest extends TestCase
     }
 
     #[Test]
+    public function anErrorBodyIsNotRememberedAsNothingFound(): void
+    {
+        // MusicBrainz's 503 (its rate limit) and 404 bodies carry no `relations`; this used
+        // to reach Arr::where() as null and throw a TypeError, and must not be cached as a
+        // miss for a week either.
+        Saloon::fake([
+            GetReleaseGroupUrlRelationshipsRequest::class => MockResponse::make(body: [
+                'error' => 'rate limit',
+            ], status: 503),
+        ]);
+
+        $mock = self::createNextClosureMock(null);
+
+        (new GetAlbumWikidataIdUsingReleaseGroupMbid(new MusicBrainzConnector()))('sample-mbid', $mock->next(...)); // @phpstan-ignore-line
+
+        self::assertFalse(Cache::has(cache_key('album wikidata id from release group mbid', 'sample-mbid')));
+    }
+
+    #[Test]
+    public function aSuccessfulBodyWithoutRelationsIsRememberedAsNothingFound(): void
+    {
+        Saloon::fake([
+            GetReleaseGroupUrlRelationshipsRequest::class => MockResponse::make(body: ['id' => 'sample-mbid']),
+        ]);
+
+        $mock = self::createNextClosureMock(null);
+
+        (new GetAlbumWikidataIdUsingReleaseGroupMbid(new MusicBrainzConnector()))('sample-mbid', $mock->next(...)); // @phpstan-ignore-line
+
+        self::assertTrue(Cache::has(cache_key('album wikidata id from release group mbid', 'sample-mbid')));
+    }
+
+    #[Test]
     public function justPassOnIfMbidIsNull(): void
     {
         Saloon::fake([]);
