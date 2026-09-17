@@ -1,0 +1,71 @@
+# Things this project has decided it may show. Tracked and public on purpose.
+# Keys: root, prefix, email (public scanner); skip (both).
+# NEVER put a private NAME here — the file is public, and a name would be an index.
+root proj
+# an npm package name that happens to match a private-name shape
+skip pnpm-lock.yaml
+
+# Upstream project's own public contact addresses and domains (koel.dev is the project's own
+# domain; phanan.net is the upstream maintainer's own site; taylorotwell@gmail.com is the
+# Laravel framework creator's address shipped in the framework's own boilerplate files).
+email me@phanan.net
+email admin@koel.dev
+email demo@koel.dev
+email koel@koel.dev
+email user@koel.dev
+email taylorotwell@gmail.com
+email %@demo.koel.dev
+
+# Obviously fake fixture addresses used throughout the test suite.
+email foo@bar.com
+email foo@bar.ai
+email foo@bar.io
+email bar@baz.com
+email bar@baz.ai
+email bar@baz.io
+email john@doe.com
+email jane@doe.com
+email bruce@iron.com
+email bruce@dickison.com
+email steve@iron.com
+email luke@skywalker.com
+email test@test.com
+email 123456@reverse.proxy
+email alice@reverse.proxy
+email identifier@reverse.proxy
+
+# docs/guide/standalone-binary.md:94: generic tool root
+root .koel
+
+# config/ignition.php:103: Laravel's own default Homestead/Vagrant dev-box placeholder user
+prefix /home/vagrant
+
+# A components subdirectory of resources/assets/js/components/screens is literally named
+# "home", so a relative import of a sibling file inside it reads, character for character,
+# like a home-path. Each entry below is a component filename from such an import, not a home
+# directory.
+prefix /home/HomeScreenBlock.vue
+prefix /home/LeastPlayedSongs.vue
+prefix /home/MostPlayedSongs.vue
+prefix /home/NewAlbums.vue
+prefix /home/NewArtists.vue
+prefix /home/NewSongs.vue
+prefix /home/PlayableCardGridSkeleton.vue
+prefix /home/PlayableCardGrid.vue
+prefix /home/PlayableCard.vue
+prefix /home/RandomAlbums.vue
+prefix /home/RandomArtists.vue
+prefix /home/RandomSongs.vue
+prefix /home/RecentlyPlayedPlayables.vue
+prefix /home/ReorderBlocksModal.vue
+prefix /home/SimilarSongs.vue
+prefix /home/TopAlbums.vue
+prefix /home/TopArtists.vue
+prefix /home/ViewAllRecentlyPlayedPlayablesButton.vue
+
+# .junie/mcp/mcp.json:4,6: upstream's own file, upstream's own author's machine path.
+# Third-party identities are not in scope for this project's guard.
+prefix /Users/an
+
+# resources/assets/js/router.spec.ts: a spec file whose assertion strings look like paths.
+skip resources/assets/js/router.spec.ts
