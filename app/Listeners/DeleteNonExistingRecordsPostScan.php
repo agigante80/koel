@@ -39,6 +39,10 @@ readonly class DeleteNonExistingRecordsPostScan implements ShouldQueue
             return;
         }
 
+        if ($this->wouldDeleteTooMuch($paths)) {
+            return;
+        }
+
         Song::deleteWhereValueNotIn($paths, 'path', static function (Builder $builder): Builder {
             return $builder->whereNull('podcast_id');
         });
@@ -69,5 +73,67 @@ readonly class DeleteNonExistingRecordsPostScan implements ShouldQueue
         }
 
         return Song::query()->whereNull('podcast_id')->whereNotIn('path', $paths)->exists();
+    }
+
+    /**
+     * The empty-scan guard above covers a scan that finds NOTHING. A scan that finds SOME of the
+     * library is the commoner fault and is not covered by it: ignoreUnreadableDirs() reports a
+     * subtree the scanner cannot enter as simply absent, so a scan seeing 1 file of 157 would
+     * delete the other 156 rows and then prune the albums and artists they leave empty.
+     *
+     * Refuses a deletion that would remove more than the configured SHARE of the non-podcast
+     * library (`koel.scan.max_deletion_ratio`, a fraction between 0 and 1). Unset is off, which
+     * keeps existing behaviour for anyone who never sets it; exactly 1 is the explicit way to
+     * disable it. Anything else that cannot be read as a share, an empty value, a non-number,
+     * `20` meant as twenty percent, refuses EVERY deletion and logs why, because a bound that
+     * cannot be read is not a bound and must not fail open.
+     */
+    private function wouldDeleteTooMuch(array $paths): bool
+    {
+        $ratio = config('koel.scan.max_deletion_ratio');
+
+        // Unset (null) is off. An empty string is NOT unset: `RATIO=` in a compose file, or a
+        // `${VAR}` that resolves to nothing, arrives here as '' and is refused below.
+        if ($ratio === null) {
+            return false;
+        }
+
+        if (!is_numeric($ratio) || (float) $ratio < 0.0 || (float) $ratio > 1.0) {
+            Log::error(sprintf('koel.scan.max_deletion_ratio is %s, which is not a share between 0 and 1. Refusing '
+            . 'every scan deletion until it is corrected. Use 0.2 for twenty percent, or unset it.', var_export(
+                $ratio,
+                true,
+            )));
+
+            return true;
+        }
+
+        if ((float) $ratio === 1.0) {
+            return false;
+        }
+
+        $total = Song::query()->whereNull('podcast_id')->count();
+
+        if ($total === 0) {
+            return false;
+        }
+
+        $doomed = Song::query()->whereNull('podcast_id')->whereNotIn('path', $paths)->count();
+
+        if (($doomed / $total) <= (float) $ratio) {
+            return false;
+        }
+
+        Log::warning(sprintf(
+            'Scan would delete %d of %d songs, more than the %s share allowed by '
+            . 'koel.scan.max_deletion_ratio. Refusing, because a partially readable media directory is '
+            . 'indistinguishable from a library that really shrank. Raise or unset the setting if the '
+            . 'deletion is intended.',
+            $doomed,
+            $total,
+            $ratio,
+        ));
+
+        return true;
     }
 }
