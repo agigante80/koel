@@ -35,17 +35,18 @@ class ScanIndexer
             ->each(static function (Collection $paths): void {
                 // One chunk failing must not abort the scan: the workers have already committed
                 // every song, MediaScanCompleted still has to fire for the deletion pass, and a
-                // rescan would classify these songs as unchanged and never index them. Name the
-                // paths instead, so `koel:scan --force` on them is the recovery.
+                // rescan would classify these songs as unchanged and never index them. Say
+                // where it stopped instead; `scout:import` over the model is the recovery.
                 try {
                     self::index($paths);
                 } catch (Throwable $e) {
                     Log::warning(sprintf(
-                        'Could not add %d scanned song(s) to the search index (%s). They are in the '
-                        . 'library but will not turn up in search until re-indexed; the first is %s.',
+                        'Indexing the chunk of %d scanned song(s) starting at %s stopped with "%s". '
+                        . 'Whatever that step had not reached (songs, then albums, artists, genres) '
+                        . 'is in the library but will not turn up in search until re-indexed.',
                         $paths->count(),
-                        $e->getMessage(),
                         $paths->first(),
+                        $e->getMessage(),
                     ));
                 }
             });
