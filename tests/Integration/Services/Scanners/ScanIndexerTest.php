@@ -9,8 +9,11 @@ use App\Models\Song;
 use App\Services\Scanners\ScanIndexer;
 use App\Values\Scanning\ScanResult;
 use App\Values\Scanning\ScanResultCollection;
+use Illuminate\Support\Facades\Log;
 use Laravel\Scout\EngineManager;
+use Laravel\Scout\Engines\NullEngine;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\Fakes\RecordingSearchEngine;
 use Tests\TestCase;
 
@@ -57,6 +60,48 @@ class ScanIndexerTest extends TestCase
                 ->all(),
             $this->engine->updatedKeysOf(Genre::class),
         );
+    }
+
+    #[Test]
+    public function indexesTheAlbumArtistWhenItIsNotTheTrackArtist(): void
+    {
+        /** @var Artist $albumArtist */
+        $albumArtist = Artist::factory()->create();
+        /** @var Album $album */
+        $album = Album::factory()->for($albumArtist)->create();
+        /** @var Song $song */
+        $song = Song::factory()->for($album)->create(['artist_id' => Artist::factory()->create()->id]);
+        $this->engine->updated = [];
+
+        (new ScanIndexer())->reindex(ScanResultCollection::create()->add(ScanResult::success($song->path)));
+
+        self::assertContains((string) $albumArtist->id, $this->engine->updatedKeysOf(Artist::class));
+        self::assertContains((string) $song->artist_id, $this->engine->updatedKeysOf(Artist::class));
+    }
+
+    #[Test]
+    public function aFailingChunkIsReportedAndDoesNotAbort(): void
+    {
+        Log::spy();
+        /** @var Song $song */
+        $song = Song::factory()->create();
+        $this->app->make(EngineManager::class)->extend('failing', static fn () => new class extends NullEngine {
+            public function update($models): void
+            {
+                throw new RuntimeException('database is locked');
+            }
+        });
+        config(['scout.driver' => 'failing']);
+
+        (new ScanIndexer())->reindex(ScanResultCollection::create()->add(ScanResult::success($song->path)));
+
+        Log::shouldHaveReceived('warning') // @phpstan-ignore-line
+            ->once()
+            ->withArgs(
+                static fn (string $message) => (
+                    str_contains($message, 'database is locked') && str_contains($message, $song->path)
+                ),
+            );
     }
 
     #[Test]

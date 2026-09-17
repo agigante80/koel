@@ -9,6 +9,8 @@ use App\Models\Song;
 use App\Values\Scanning\ScanResult;
 use App\Values\Scanning\ScanResultCollection;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * Puts the songs a parallel scan saved, and their albums, artists and genres, into the search
@@ -31,17 +33,40 @@ class ScanIndexer
             ->map(static fn (ScanResult $result): string => $result->path)
             ->chunk(self::CHUNK_SIZE)
             ->each(static function (Collection $paths): void {
-                /** @var \Illuminate\Database\Eloquent\Collection<int, Song> $songs */
-                $songs = Song::query()->whereIn('path', $paths->all())->get();
-
-                if ($songs->isEmpty()) {
-                    return;
+                // One chunk failing must not abort the scan: the workers have already committed
+                // every song, MediaScanCompleted still has to fire for the deletion pass, and a
+                // rescan would classify these songs as unchanged and never index them. Name the
+                // paths instead, so `koel:scan --force` on them is the recovery.
+                try {
+                    self::index($paths);
+                } catch (Throwable $e) {
+                    Log::warning(sprintf(
+                        'Could not add %d scanned song(s) to the search index (%s). They are in the '
+                        . 'library but will not turn up in search until re-indexed; the first is %s.',
+                        $paths->count(),
+                        $e->getMessage(),
+                        $paths->first(),
+                    ));
                 }
-
-                $songs->searchable();
-                Album::query()->whereKey($songs->pluck('album_id')->unique()->filter())->get()->searchable();
-                Artist::query()->whereKey($songs->pluck('artist_id')->unique()->filter())->get()->searchable();
-                Genre::query()->whereKey($songs->pluck('genres.*.id')->flatten()->unique())->get()->searchable();
             });
+    }
+
+    private static function index(Collection $paths): void
+    {
+        /** @var \Illuminate\Database\Eloquent\Collection<int, Song> $songs */
+        $songs = Song::query()->whereIn('path', $paths->all())->get();
+
+        if ($songs->isEmpty()) {
+            return;
+        }
+
+        $songs->searchable();
+        Album::query()->whereKey($songs->pluck('album_id')->unique()->filter())->get()->searchable();
+
+        // Both the track artist and the album artist: a compilation's album artist is not a
+        // track artist, and the worker created or updated it too.
+        $artistIds = $songs->pluck('artist_id')->merge($songs->pluck('album.artist_id'))->unique()->filter();
+        Artist::query()->whereKey($artistIds)->get()->searchable();
+        Genre::query()->whereKey($songs->pluck('genres.*.id')->flatten()->unique())->get()->searchable();
     }
 }
