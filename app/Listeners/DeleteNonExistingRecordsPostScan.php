@@ -112,13 +112,19 @@ readonly class DeleteNonExistingRecordsPostScan implements ShouldQueue
             return false;
         }
 
-        $total = Song::query()->whereNull('podcast_id')->count();
+        // Only locally stored songs can be deleted by a scan, so they are the population; a
+        // cloud song is merged into $paths and never doomed, and counting it would dilute the
+        // share. The difference is taken in PHP rather than with whereNotIn($paths), which
+        // would bind every scanned path at once and trip SQLite's 999-parameter limit on any
+        // real library, the very limit deleteWhereValueNotIn() chunks to avoid.
+        $local = Song::query()->storedLocally()->pluck('path');
+        $total = $local->count();
 
         if ($total === 0) {
             return false;
         }
 
-        $doomed = Song::query()->whereNull('podcast_id')->whereNotIn('path', $paths)->count();
+        $doomed = $local->diff($paths)->count();
 
         if (($doomed / $total) <= (float) $ratio) {
             return false;

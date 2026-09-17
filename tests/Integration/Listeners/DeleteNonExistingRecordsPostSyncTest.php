@@ -160,6 +160,26 @@ class DeleteNonExistingRecordsPostSyncTest extends TestCase
     }
 
     #[Test]
+    public function theShareIsMeasuredAgainstLocalSongsOnly(): void
+    {
+        Log::spy();
+        config(['koel.scan.max_deletion_ratio' => 0.5]);
+
+        // Nine cloud songs can never be deleted by a scan; with them in the denominator, losing
+        // two of three local songs would read as 2 of 12 and pass. It is 2 of 3.
+        Song::factory()->count(9)->create(['storage' => SongStorageType::S3]);
+        $local = Song::factory()->createMany(3);
+        $result = ScanResultCollection::create()->add(ScanResult::success($local[0]->path));
+
+        $this->listener->handle(new MediaScanCompleted($result));
+
+        $local->each($this->assertModelExists(...));
+        Log::shouldHaveReceived('warning') // @phpstan-ignore-line
+            ->once()
+            ->withArgs(static fn (string $message) => str_contains($message, 'would delete 2 of 3'));
+    }
+
+    #[Test]
     public function stillDeletesWithinTheConfiguredShare(): void
     {
         config(['koel.scan.max_deletion_ratio' => 0.5]);
