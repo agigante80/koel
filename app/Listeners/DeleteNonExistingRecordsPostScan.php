@@ -9,6 +9,7 @@ use App\Services\LibraryManager;
 use App\Values\Scanning\ScanResult;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 readonly class DeleteNonExistingRecordsPostScan implements ShouldQueue
@@ -114,17 +115,24 @@ readonly class DeleteNonExistingRecordsPostScan implements ShouldQueue
 
         // Only locally stored songs can be deleted by a scan, so they are the population; a
         // cloud song is merged into $paths and never doomed, and counting it would dilute the
-        // share. The difference is taken in PHP rather than with whereNotIn($paths), which
-        // would bind every scanned path at once and trip SQLite's 999-parameter limit on any
-        // real library, the very limit deleteWhereValueNotIn() chunks to avoid.
-        $local = Song::query()->storedLocally()->pluck('path');
-        $total = $local->count();
+        // share.
+        $total = Song::query()->storedLocally()->count();
 
         if ($total === 0) {
             return false;
         }
 
-        $doomed = $local->diff($paths)->count();
+        // Count the way deleteWhereValueNotIn() deletes, in both of its regimes, so the guard
+        // measures exactly what the delete would do: under the parameter limit, a SQL
+        // whereNotIn, which compares under the connection's collation (case- and
+        // accent-insensitive on MySQL's default); above it, the byte-exact array_diff the
+        // trait itself falls back to. A count taken any other way can disagree with the delete
+        // it is bounding, in either direction.
+        $maxChunkSize = DB::getDriverName() === 'sqlite' ? 999 : 65_535;
+
+        $doomed = count($paths) <= $maxChunkSize
+            ? Song::query()->storedLocally()->whereNotIn('path', $paths)->count()
+            : count(array_diff(Song::query()->storedLocally()->pluck('path')->all(), $paths));
 
         if (($doomed / $total) <= (float) $ratio) {
             return false;
