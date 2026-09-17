@@ -204,15 +204,15 @@ return [
     'sync_log_level' => env('SYNC_LOG_LEVEL', 'error'),
 
     /*
-    |--------------------------------------------------------------------------
-    | Scan log retention
-    |--------------------------------------------------------------------------
-    |
-    | How many storage/logs/sync-*.log files to keep. Each scan that has
-    | something to report writes one. 0 keeps them all.
-    |
-    */
-    'sync_log_keep' => (int) env('SYNC_LOG_KEEP', 30),
+     |--------------------------------------------------------------------------
+     | Scan log retention
+     |--------------------------------------------------------------------------
+     |
+     | How many storage/logs/sync-*.log files to keep. Each scan that has
+     | something to report writes one. 0 keeps them all.
+     |
+     */
+    'sync_log_keep' => env('SYNC_LOG_KEEP', 30),
 
     'proxy_auth' => [
         'enabled' => env('PROXY_AUTH_ENABLED', false),
