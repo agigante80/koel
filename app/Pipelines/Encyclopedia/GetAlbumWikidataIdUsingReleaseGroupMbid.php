@@ -26,8 +26,8 @@ class GetAlbumWikidataIdUsingReleaseGroupMbid
             key: cache_key('album wikidata id from release group mbid', $mbid),
             nothingFoundTtl: now()->addWeek(),
             callback: function () use ($mbid): ?string {
-                // MusicBrainzConnector throws on a 5xx or 429, so a rate limit never reaches this
-                // line; a 2xx or 404 body without relations is a real miss, remembered as one.
+                // MusicBrainzConnector throws on any unsuccessful answer except a 404 or 400, so a
+                // rate limit never reaches this line; a body without relations is a real miss.
                 $relations = $this->connector
                     ->send(new GetReleaseGroupUrlRelationshipsRequest($mbid))
                     ->json('relations') ?? [];
