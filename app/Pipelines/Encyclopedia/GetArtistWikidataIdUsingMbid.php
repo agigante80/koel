@@ -26,15 +26,10 @@ class GetArtistWikidataIdUsingMbid
             key: cache_key('artist wikidata id from mbid', $mbid),
             nothingFoundTtl: now()->addWeek(),
             callback: function () use ($mbid): ?string {
-                // A failed request must not be remembered as "nothing found" for a week: a
-                // MusicBrainz 503 (its rate limit) or a 404 carries no `relations` at all, and
-                // handing that null to Arr::where() was a TypeError on every run. `throw()`
-                // surfaces the status instead, and the exception keeps the miss uncached, so the
-                // next run tries again. A 2xx body with no relations is a real miss and is cached.
-                $relations = $this->connector
-                    ->send(new GetArtistUrlRelationshipsRequest($mbid))
-                    ->throw()
-                    ->json('relations') ?? [];
+                // MusicBrainzConnector throws on a 5xx or 429, so a rate limit never reaches this
+                // line; a 2xx or 404 body without relations is a real miss, remembered as one.
+                $relations = $this->connector->send(new GetArtistUrlRelationshipsRequest($mbid))->json('relations')
+                ?? [];
 
                 $wikidata = collect(Arr::where(
                     $relations,
