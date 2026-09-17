@@ -69,3 +69,15 @@ prefix /Users/an
 
 # resources/assets/js/router.spec.ts: a spec file whose assertion strings look like paths.
 skip resources/assets/js/router.spec.ts
+
+# History (fork-own blobs only; upstream's history is upstream's): Vue relative imports
+# relative `home/…vue` imports that rule A reads as a home directory (forge-kit#228), dependabot's
+# address in commit messages, and upstream's demo/fixture addresses.
+prefix /home/RecentlyPlayedSongs.vue
+prefix /home/RecentlyAddedSongs.vue
+prefix /home/RecentlyAddedAlbums.vue
+prefix /home/MostPlayedArtists.vue
+prefix /home/MostPlayedAlbums.vue
+email support@dependabot.com
+email demo@koel.phanan.net
+email johny@doe.com
