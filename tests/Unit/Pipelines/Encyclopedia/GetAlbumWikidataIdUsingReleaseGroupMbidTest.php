@@ -58,9 +58,9 @@ class GetAlbumWikidataIdUsingReleaseGroupMbidTest extends TestCase
     #[Test]
     public function anErrorBodyIsNotRememberedAsNothingFound(): void
     {
-        // MusicBrainz's 503 (its rate limit) and 404 bodies carry no `relations`; this used
-        // to reach Arr::where() as null and throw a TypeError, and must not be cached as a
-        // miss for a week either.
+        // MusicBrainz's 503 (its rate limit) body carries no `relations`; this used to reach
+        // Arr::where() as null and throw a TypeError. The connector now throws on it, so the
+        // miss stays uncached and the next run retries.
         Saloon::fake([
             GetReleaseGroupUrlRelationshipsRequest::class => MockResponse::make(body: [
                 'error' => 'rate limit',
@@ -72,6 +72,23 @@ class GetAlbumWikidataIdUsingReleaseGroupMbidTest extends TestCase
         (new GetAlbumWikidataIdUsingReleaseGroupMbid(new MusicBrainzConnector()))('sample-mbid', $mock->next(...)); // @phpstan-ignore-line
 
         self::assertFalse(Cache::has(cache_key('album wikidata id from release group mbid', 'sample-mbid')));
+    }
+
+    #[Test]
+    public function aNotFoundIsRememberedAsNothingFound(): void
+    {
+        // A 404 for a specific identifier is a real miss, unlike a rate limit, and is cached.
+        Saloon::fake([
+            GetReleaseGroupUrlRelationshipsRequest::class => MockResponse::make(body: [
+                'error' => 'Not Found',
+            ], status: 404),
+        ]);
+
+        $mock = self::createNextClosureMock(null);
+
+        (new GetAlbumWikidataIdUsingReleaseGroupMbid(new MusicBrainzConnector()))('sample-mbid', $mock->next(...)); // @phpstan-ignore-line
+
+        self::assertTrue(Cache::has(cache_key('album wikidata id from release group mbid', 'sample-mbid')));
     }
 
     #[Test]

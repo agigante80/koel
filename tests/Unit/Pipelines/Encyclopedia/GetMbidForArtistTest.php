@@ -101,4 +101,20 @@ class GetMbidForArtistTest extends TestCase
 
         Saloon::assertNothingSent();
     }
+
+    #[Test]
+    public function aRateLimitIsNotRememberedAsNothingFound(): void
+    {
+        // Before the connector threw on a 5xx, a 503 body gave json('artists.0.id') null and
+        // the artist was remembered as having no MBID for a week.
+        Saloon::fake([
+            SearchForArtistRequest::class => MockResponse::make(body: ['error' => 'rate limit'], status: 503),
+        ]);
+
+        $mock = self::createNextClosureMock(null);
+
+        (new GetMbidForArtist(new MusicBrainzConnector()))('Slipknot', $mock->next(...)); // @phpstan-ignore-line
+
+        self::assertFalse(Cache::has(cache_key('artist mbid', 'Slipknot')));
+    }
 }
