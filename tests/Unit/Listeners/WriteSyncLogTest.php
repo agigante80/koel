@@ -17,6 +17,8 @@ class WriteSyncLogTest extends TestCase
 {
     private WriteScanLog $listener;
     private string $originalLogLevel;
+    private string $originalStoragePath;
+    private string $storagePath;
 
     public function setUp(): void
     {
@@ -25,12 +27,19 @@ class WriteSyncLogTest extends TestCase
         $this->listener = new WriteScanLog();
         $this->originalLogLevel = config('koel.sync_log_level');
         Carbon::setTestNow(Carbon::create(2021, 1, 2, 12, 34, 56));
+
+        // Pruning deletes files, so these tests get a storage path of their own rather than
+        // the checkout's real storage/logs, which may hold scan logs worth keeping.
+        $this->originalStoragePath = $this->app->storagePath();
+        $this->storagePath = sys_get_temp_dir() . '/koel-write-scan-log-test-' . uniqid();
+        File::makeDirectory($this->storagePath . '/logs', 0o755, true);
+        $this->app->useStoragePath($this->storagePath);
     }
 
     protected function tearDown(): void
     {
-        File::delete(storage_path('logs/sync-20210102-123456.log'));
-        File::delete(File::glob(storage_path('logs/sync-2020*.log')));
+        $this->app->useStoragePath($this->originalStoragePath);
+        File::deleteDirectory($this->storagePath);
         config(['koel.sync_log_level' => $this->originalLogLevel]);
 
         parent::tearDown();

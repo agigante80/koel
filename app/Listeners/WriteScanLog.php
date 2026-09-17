@@ -51,10 +51,19 @@ readonly class WriteScanLog implements ShouldQueue
             return;
         }
 
-        collect(File::glob(storage_path('logs/sync-*.log')) ?: [])
+        // One delete() call with the whole list. Not ->each(File::delete(...)): each() passes
+        // the key as a second argument, and Filesystem::delete() reads every argument as a
+        // path, so that unlinked the log AND a file named after the key, returned false, and
+        // stopped the loop after one file.
+        $excess = collect(File::glob(storage_path('logs/sync-*.log')) ?: [])
             ->sort()
             ->reverse()
             ->slice($keep)
-            ->each(File::delete(...));
+            ->values()
+            ->all();
+
+        if ($excess) {
+            File::delete($excess);
+        }
     }
 }
