@@ -101,4 +101,51 @@ class GetMbidForArtistTest extends TestCase
 
         Saloon::assertNothingSent();
     }
+
+    #[Test]
+    public function aRefusedRequestIsNotRememberedAsNothingFound(): void
+    {
+        // A 403 is what MusicBrainz sends a refused User-Agent; it says nothing about the artist.
+        Saloon::fake([
+            SearchForArtistRequest::class => MockResponse::make(body: ['error' => 'forbidden'], status: 403),
+        ]);
+
+        $mock = self::createNextClosureMock(null);
+
+        (new GetMbidForArtist(new MusicBrainzConnector()))('Slipknot', $mock->next(...)); // @phpstan-ignore-line
+
+        self::assertFalse(Cache::has(cache_key('artist mbid', 'Slipknot')));
+    }
+
+    #[Test]
+    public function anInvalidMbidIsRememberedAsNothingFound(): void
+    {
+        // MusicBrainz answers a malformed identifier with 400 "Invalid mbid.": about the id,
+        // not the service, so it is a miss and must not throw on every view.
+        Saloon::fake([
+            SearchForArtistRequest::class => MockResponse::make(body: ['error' => 'Invalid mbid.'], status: 400),
+        ]);
+
+        $mock = self::createNextClosureMock(null);
+
+        (new GetMbidForArtist(new MusicBrainzConnector()))('Slipknot', $mock->next(...)); // @phpstan-ignore-line
+
+        self::assertTrue(Cache::has(cache_key('artist mbid', 'Slipknot')));
+    }
+
+    #[Test]
+    public function aRateLimitIsNotRememberedAsNothingFound(): void
+    {
+        // Before the connector threw on a 5xx, a 503 body gave json('artists.0.id') null and
+        // the artist was remembered as having no MBID for a week.
+        Saloon::fake([
+            SearchForArtistRequest::class => MockResponse::make(body: ['error' => 'rate limit'], status: 503),
+        ]);
+
+        $mock = self::createNextClosureMock(null);
+
+        (new GetMbidForArtist(new MusicBrainzConnector()))('Slipknot', $mock->next(...)); // @phpstan-ignore-line
+
+        self::assertFalse(Cache::has(cache_key('artist mbid', 'Slipknot')));
+    }
 }
