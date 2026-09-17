@@ -37,11 +37,13 @@ class MusicBrainzConnector extends Connector
      * limit) for seven days, a 403 (a refused User-Agent) for every artist and album touched,
      * silently, or, where a pipe indexed into the body, a TypeError. Any unsuccessful answer
      * therefore throws, which TriesRemember rescues before its cache write, so the miss stays
-     * uncached and the next run retries. The one exception is a 404 for a specific
-     * identifier: that is a real miss and stays an ordinary response, remembered as one.
+     * uncached and the next run retries. The exceptions are the two answers that are about
+     * the identifier rather than the service: a 404 (unknown) and a 400 (`Invalid mbid.`,
+     * which a mis-tagged file can carry). Both are real misses, stay ordinary responses,
+     * and are remembered as misses rather than thrown on every view.
      */
     public function hasRequestFailed(Response $response): ?bool
     {
-        return !$response->successful() && $response->status() !== 404;
+        return !$response->successful() && !in_array($response->status(), [400, 404], true);
     }
 }
