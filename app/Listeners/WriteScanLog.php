@@ -7,6 +7,7 @@ use App\Values\Scanning\ScanResult;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 readonly class WriteScanLog implements ShouldQueue
 {
@@ -62,8 +63,8 @@ readonly class WriteScanLog implements ShouldQueue
             ->values()
             ->all();
 
-        if ($excess) {
-            File::delete($excess);
+        if ($excess && !File::delete($excess)) {
+            Log::warning('Could not prune every old scan log under storage/logs; check their ownership.');
         }
     }
 }
