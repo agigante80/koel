@@ -27,8 +27,8 @@ class ScanIndexerTest extends TestCase
 
         $engine = new RecordingSearchEngine();
         $this->engine = $engine;
-        // static: the Manager rebinds a bound closure to itself, so $this would be the manager.
-        $this->app->make(EngineManager::class)->extend('recording', static fn () => $engine);
+        // Not static: the Manager binds the closure to itself, so $this inside would be the manager.
+        $this->app->make(EngineManager::class)->extend('recording', fn () => $engine); // @mago-ignore lint:prefer-static-closure
         config(['scout.driver' => 'recording']);
     }
 
@@ -85,7 +85,8 @@ class ScanIndexerTest extends TestCase
         Log::spy();
         /** @var Song $song */
         $song = Song::factory()->create();
-        $this->app->make(EngineManager::class)->extend('failing', static fn () => new class extends NullEngine {
+        // @mago-ignore lint:prefer-static-closure
+        $this->app->make(EngineManager::class)->extend('failing', fn () => new class extends NullEngine {
             public function update($models): void
             {
                 throw new RuntimeException('database is locked');

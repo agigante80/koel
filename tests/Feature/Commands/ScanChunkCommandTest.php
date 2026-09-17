@@ -61,7 +61,7 @@ class ScanChunkCommandTest extends TestCase
         // Several workers writing to the one-writer TNTSearch index at once is the
         // "database is locked" failure; the parent indexes what the workers saved.
         $engine = new RecordingSearchEngine();
-        $this->app->make(EngineManager::class)->extend('recording', static fn () => $engine);
+        $this->app->make(EngineManager::class)->extend('recording', fn () => $engine); // @mago-ignore lint:prefer-static-closure
         config(['scout.driver' => 'recording']);
 
         $owner = create_admin();
