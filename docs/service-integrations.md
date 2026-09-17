@@ -1,21 +1,34 @@
 ---
-description: Setting up MusicBrainz, Last.fm, Spotify, and YouTube integrations for metadata, artwork, and scrobbling.
+description: Setting up MusicBrainz, Last.fm, ListenBrainz, Spotify, and YouTube integrations for metadata, artwork, and scrobbling.
 ---
 
 # Service Integrations
 
 To further enhance your music experience, Koel supports several 3rd-party service integrations: MusicBrainz, Last.fm,
-Spotify, and YouTube.
+ListenBrainz, Spotify, and YouTube.
 
 :::tip Note
-Koel prefers MusicBrainz/Wikipedia for artist and album information, and Spotify for artist images and album arts.
+Koel prefers MusicBrainz/Wikipedia for artist and album information, the Cover Art Archive for album covers, and
+Wikidata for artist images. Spotify is used for images only when those have none.
 :::
 
 ## MusicBrainz (+Wikipedia)
 
 [MusicBrainz](https://musicbrainz.org/) is a community-maintained open music encyclopedia that collects music metadata
 and makes it available to the public. Koel uses MusicBrainz (with cross-reference to Wikipedia) to retrieve artist and
-album information, artist images, and album arts.
+album information, and to find artist images and album covers.
+
+Album covers come from the [Cover Art Archive](https://coverartarchive.org/), which MusicBrainz runs together with the
+Internet Archive. Koel finds the cover by the album's MusicBrainz identifier and prefers it over Spotify. Albums without
+an identifier are skipped, so on an existing library run
+[`koel:fetch-mbids`](./cli-commands.md#koel-fetch-mbids) before
+[`koel:fetch-artwork`](./cli-commands.md#koel-fetch-artwork).
+
+Artist images come from [Wikidata](https://www.wikidata.org/), found by the artist's MusicBrainz identifier, and are
+also preferred over Spotify.
+
+If an album has no release year in its tags, Koel fills it in with the year the album was first released, according to
+MusicBrainz. A year from your tags is never replaced.
 
 You don't have anything to do to enable this integration, as it is enabled by default. However, you can disable it by
 explicitly setting `USE_MUSICBRAINZ` to `false` in `.env`.
@@ -32,6 +45,19 @@ scrobbling. To enable the connection:
 1. [Create a Last.fm API account](https://www.last.fm/api/account/create). In the **Callback URL** field, fill in `https://<your-koel-host>/api/lastfm/callback` (though this is not used).
 2. Populate the two variables `LASTFM_API_KEY` and `LASTFM_API_SECRET` in `.env` with the credentials grabbed from step 1. This enables Koel to retrieve media information from Last.fm.
 3. To enable scrobbling, go to `https://<your-koel-host>/#/profile` and click the **Connect** button under Last.fm Integration. This connection is per-user, i.e. each user can connect their own Last.fm account.
+
+## ListenBrainz
+
+[ListenBrainz](https://listenbrainz.org) is an open-source alternative to Last.fm, run by the MetaBrainz Foundation.
+Your listening history is released into the public domain instead of being locked away. Koel can submit your listens
+there, on its own or alongside Last.fm.
+
+No server-side setup is needed — each user connects their own account:
+
+1. Go to `https://<your-koel-host>/#/profile` and find **ListenBrainz Integration**.
+2. Paste the user token from your [ListenBrainz settings](https://listenbrainz.org/settings/) and click **Connect**.
+
+If you run your own ListenBrainz server, point Koel at it with the `LISTENBRAINZ_API_ENDPOINT` variable in `.env`.
 
 ## Spotify
 

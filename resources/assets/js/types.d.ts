@@ -141,6 +141,7 @@ interface Artist {
   name: string
   image: string // empty string = no image
   created_at: string
+  mbid?: string | null
   is_external: boolean
   favorite: boolean
   rating: number
@@ -158,6 +159,7 @@ interface Album {
   cover: string // empty string = no cover
   thumbnail?: string | null
   created_at: string
+  mbid?: string | null
   year: number | null
   length: number
   is_external: boolean
@@ -181,6 +183,7 @@ interface BasePlayable extends IStreamable {
   title: string
   readonly length: number
   play_count_registered?: boolean
+  scrobble_registered?: boolean
   play_count: number
   rating: number // 0-5, current user's rating; 0 = unrated
   play_start_time?: number
@@ -207,6 +210,7 @@ interface Song extends BasePlayable {
   lyrics: string
   is_public: boolean
   is_external: boolean
+  mbid?: string | null
   basename?: string
   deleted?: boolean
   collaboration?: {
@@ -436,6 +440,7 @@ interface UserPreferences extends Record<string, any> {
   include_public_media: boolean
   crossfade_duration: number
   lastfm_session_key?: string
+  listenbrainz_token?: string
   home_blocks_order: string[]
 }
 

@@ -17,6 +17,9 @@ class EncyclopediaService
         private readonly Encyclopedia $encyclopedia,
         private readonly ImageStorage $imageStorage,
         private readonly SpotifyService $spotifyService,
+        private readonly CoverArtArchiveService $coverArtArchiveService,
+        private readonly WikidataService $wikidataService,
+        private readonly MbidService $mbidService,
     ) {}
 
     public function getAlbumInformation(Album $album): ?AlbumInformation
@@ -24,6 +27,10 @@ class EncyclopediaService
         if ($album->is_unknown) {
             return null;
         }
+
+        // Identifiers come from MusicBrainz whenever it's enabled, even when another service supplies the entry.
+        $this->mbidService->fetchAndStoreAlbumMbids($album);
+        $this->mbidService->fetchAndStoreAlbumYear($album);
 
         return rescue(
             fn () => Cache::remember(
@@ -41,6 +48,8 @@ class EncyclopediaService
             return null;
         }
 
+        $this->mbidService->fetchAndStoreArtistMbid($artist);
+
         return rescue(
             fn () => Cache::remember(
                 cache_key('artist information', $artist->name),
@@ -55,7 +64,9 @@ class EncyclopediaService
     {
         $info = $this->encyclopedia->getAlbumInformation($album) ?: AlbumInformation::make();
 
-        if ($album->cover || !SpotifyService::enabled() && !$info->cover) {
+        $noCoverSourceAvailable = !CoverArtArchiveService::enabled() && !SpotifyService::enabled() && !$info->cover;
+
+        if ($album->cover || $noCoverSourceAvailable) {
             return $info;
         }
 
@@ -73,7 +84,9 @@ class EncyclopediaService
     {
         $info = $this->encyclopedia->getArtistInformation($artist) ?: ArtistInformation::make();
 
-        if ($artist->image || !SpotifyService::enabled() && !$info->image) {
+        $noImageSourceAvailable = !WikidataService::enabled() && !SpotifyService::enabled() && !$info->image;
+
+        if ($artist->image || $noImageSourceAvailable) {
             return $info;
         }
 
@@ -89,7 +102,9 @@ class EncyclopediaService
 
     private function fetchAndStoreAlbumCover(Album $album, AlbumInformation $info): ?string
     {
-        $coverUrl = SpotifyService::enabled() ? $this->spotifyService->tryGetAlbumCover($album) : $info->cover;
+        $coverUrl =
+            $this->coverArtArchiveService->tryGetAlbumCover($album)
+            ?? (SpotifyService::enabled() ? $this->spotifyService->tryGetAlbumCover($album) : $info->cover);
 
         if (!$coverUrl) {
             return null;
@@ -104,7 +119,9 @@ class EncyclopediaService
 
     private function fetchAndStoreArtistImage(Artist $artist, ArtistInformation $info): ?string
     {
-        $imgUrl = SpotifyService::enabled() ? $this->spotifyService->tryGetArtistImage($artist) : $info->image;
+        $imgUrl =
+            $this->wikidataService->tryGetArtistImage($artist)
+            ?? (SpotifyService::enabled() ? $this->spotifyService->tryGetArtistImage($artist) : $info->image);
 
         if (!$imgUrl) {
             return null;

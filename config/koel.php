@@ -128,6 +128,7 @@ return [
         'musicbrainz' => [
             'enabled' => env('USE_MUSICBRAINZ', true),
             'endpoint' => 'https://musicbrainz.org/ws/2',
+            'cover_art_endpoint' => 'https://coverartarchive.org',
             'user_agent' => env('MUSICBRAINZ_USER_AGENT'),
         ],
         'youtube' => [
@@ -138,6 +139,9 @@ return [
             'key' => env('LASTFM_API_KEY'),
             'secret' => env('LASTFM_API_SECRET'),
             'endpoint' => 'https://ws.audioscrobbler.com/2.0',
+        ],
+        'listenbrainz' => [
+            'endpoint' => env('LISTENBRAINZ_API_ENDPOINT', 'https://api.listenbrainz.org'),
         ],
         'spotify' => [
             'client_id' => env('SPOTIFY_CLIENT_ID'),
