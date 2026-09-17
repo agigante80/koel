@@ -41,11 +41,9 @@ class WriteSyncLogTest extends TestCase
     {
         config(['koel.sync_log_level' => 'error']);
 
-        $this->listener->handle(new MediaScanCompleted(
-            ScanResultCollection::create()
-                ->add(ScanResult::success('/media/foo.mp3'))
-                ->add(ScanResult::skipped('/media/bar.mp3')),
-        ));
+        $this->listener->handle(new MediaScanCompleted(ScanResultCollection::create()->add(ScanResult::success(
+            '/media/foo.mp3',
+        ))->add(ScanResult::skipped('/media/bar.mp3'))));
 
         self::assertFileDoesNotExist(storage_path('logs/sync-20210102-123456.log'));
     }
@@ -65,6 +63,22 @@ class WriteSyncLogTest extends TestCase
         self::assertFileExists(storage_path('logs/sync-20210102-123456.log'));
         self::assertFileExists(storage_path('logs/sync-20200103-000000.log'));
         self::assertFileDoesNotExist(storage_path('logs/sync-20200102-000000.log'));
+        self::assertFileDoesNotExist(storage_path('logs/sync-20200101-000000.log'));
+    }
+
+    #[Test]
+    public function handleFallsBackToTheDefaultRetentionWhenTheSettingIsNotANumber(): void
+    {
+        config(['koel.sync_log_level' => 'error', 'koel.sync_log_keep' => '']);
+
+        foreach (range(1, 31) as $day) {
+            File::put(storage_path(sprintf('logs/sync-202001%02d-000000.log', $day)), 'old');
+        }
+
+        $this->listener->handle(self::createSyncCompleteEvent());
+
+        // 31 old plus the new one, default 30 kept: the two oldest go.
+        self::assertCount(30, File::glob(storage_path('logs/sync-*.log')));
         self::assertFileDoesNotExist(storage_path('logs/sync-20200101-000000.log'));
     }
 

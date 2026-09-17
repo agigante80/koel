@@ -39,7 +39,13 @@ readonly class WriteScanLog implements ShouldQueue
      */
     private static function prune(): void
     {
-        $keep = (int) config('koel.sync_log_keep', 30);
+        // A blank or non-numeric SYNC_LOG_KEEP must not read as 0, which means "keep everything"
+        // and would silently disable pruning; it falls back to the default instead.
+        $keep = filter_var(config('koel.sync_log_keep'), FILTER_VALIDATE_INT);
+
+        if ($keep === false) {
+            $keep = 30;
+        }
 
         if ($keep <= 0) {
             return;
@@ -49,6 +55,6 @@ readonly class WriteScanLog implements ShouldQueue
             ->sort()
             ->reverse()
             ->slice($keep)
-            ->each(static fn (string $file) => File::delete($file));
+            ->each(File::delete(...));
     }
 }
