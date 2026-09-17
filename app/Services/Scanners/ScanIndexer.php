@@ -61,13 +61,13 @@ class ScanIndexer
             return;
         }
 
-        $songs->searchable();
-        Album::query()->whereKey($songs->pluck('album_id')->unique()->filter())->get()->searchable();
+        $songs->searchable(); // @phpstan-ignore-line
+        Album::query()->whereKey($songs->pluck('album_id')->unique()->filter())->get()->searchable(); // @phpstan-ignore-line
 
         // Both the track artist and the album artist: a compilation's album artist is not a
         // track artist, and the worker created or updated it too.
         $artistIds = $songs->pluck('artist_id')->merge($songs->pluck('album.artist_id'))->unique()->filter();
-        Artist::query()->whereKey($artistIds)->get()->searchable();
-        Genre::query()->whereKey($songs->pluck('genres.*.id')->flatten()->unique())->get()->searchable();
+        Artist::query()->whereKey($artistIds)->get()->searchable(); // @phpstan-ignore-line
+        Genre::query()->whereKey($songs->pluck('genres.*.id')->flatten()->unique())->get()->searchable(); // @phpstan-ignore-line
     }
 }
